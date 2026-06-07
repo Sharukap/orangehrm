@@ -1,6 +1,6 @@
 # Skills catalog
 
-25 project-level skills covering the OrangeHRM codebase end-to-end. Each `SKILL.md` has YAML frontmatter (`name`, `description`) describing when it auto-loads — agents that don't auto-load by description should consult this catalog and read the relevant skill on demand.
+28 project-level skills covering the OrangeHRM codebase end-to-end. Each `SKILL.md` has YAML frontmatter (`name`, `description`) describing when it auto-loads — agents that don't auto-load by description should consult this catalog and read the relevant skill on demand.
 
 Skills cross-reference each other liberally; the table below groups them by area to make discovery easier than the alphabetical filesystem order.
 
@@ -8,7 +8,10 @@ Skills cross-reference each other liberally; the table below groups them by area
 
 | Skill | Covers |
 |---|---|
-| [`dev-environment`](dev-environment/SKILL.md) | The Docker-based local dev environment (companion repo `orangehrm-os-dev-environment`), container naming, PHP/MySQL/MariaDB version matrix, `LOCAL_SRC` mount, common `docker compose` commands. |
+| [`compatibility`](compatibility/SKILL.md) | Supported-version alignment across Composer constraints, installer system requirements, GitHub Actions matrices, Docker dev-env services, database engines, browser/frontend targets, Node/Yarn, webservers, and packaging/runtime claims. |
+| [`dev-environment`](dev-environment/SKILL.md) | The Docker-based local dev environment (companion repo `orangehrm-os-dev-environment`), container naming, PHP/MySQL/MariaDB version matrix, `LOCAL_SRC` mount, common `docker compose` commands, troubleshooting a broken stack (containers not starting, build failures, app unreachable, DB connection refused), and checking the companion repo for drift. |
+| [`dependencies`](dependencies/SKILL.md) | Composer and Yarn dependency management: owning manifest/lockfile locations, lowest-supported-PHP Composer resolution, Docker-only package-manager commands, packageManager rules, and npm/package-lock avoidance. |
+| [`ecosystem`](ecosystem/SKILL.md) | External OrangeHRM Starter ecosystem references: source/mobile/dev-env/cloud-package repos, API docs, help center, SourceForge/GitHub releases, DockerHub, product page, demo, app stores, and AWS Marketplace AMI. |
 | [`testing`](testing/SKILL.md) | PHPUnit per-plugin testsuites, the test-DB lifecycle (`instance:create-test-db`), test base classes (`TestCase` / `KernelTestCase` / `EntityTestCase` / `EndpointTestCase`), YAML fixtures + `TestDataService::populate()`, Jest for frontend, Cypress for E2E. |
 
 ## Persistence layer
@@ -72,22 +75,13 @@ The skills cross-link liberally. Some of the most-traveled paths:
 
 - **Adding a new screen end-to-end**: `frontend-pages` ↔ `rest-endpoints` ↔ `authorization` ↔ `migrations` ↔ `menus`
 - **Adding a new feature with persistence**: `entities` ↔ `migrations` ↔ `daos` ↔ `services` ↔ `rest-endpoints`
+- **Changing supported runtime or package versions**: `compatibility` ↔ `dependencies` ↔ `dev-environment` ↔ `testing`
 - **Adding an event-triggered notification**: `events` ↔ `mail` ↔ `services`
 - **Encrypting a new sensitive field**: `security-primitives` ↔ `entities` (EntityListener) ↔ `migrations` (column sizing)
-- **Setting up a fresh checkout**: `dev-environment` ↔ the project's `/ohrm-onboard` slash command (Claude Code only) ↔ `testing` (`instance:create-test-db`)
+- **Setting up a fresh checkout**: `dev-environment` ↔ the project's `/onboard` slash command (Claude Code & Cursor; other tools can run `.agents/commands/onboard.md` as a prompt)
 
 ---
 
-## Convention for skill files
+## Writing or updating skills
 
-Each `<name>/SKILL.md` is structured:
-
-1. YAML frontmatter — `name` (the skill ID) + `description` (the trigger blurb — what tasks should load this skill)
-2. Substantive sections covering the topic, with code examples
-3. **Recipes** — concrete copy-and-adapt patterns for common tasks
-4. **Checklists** — what to verify when doing common tasks
-5. **Things that bite** — the gotchas worth flagging
-
-When editing a skill, keep this shape. When adding a new skill, mirror an existing one of similar size.
-
-The source of truth for these files is `.agents/skills/<name>/SKILL.md`. Don't edit them under `.claude/skills/` (which may be a symlink or a stale copy — see `.agents/SETUP.md`).
+This README is the **catalog** — what exists. For **how** to add, edit, rename, or remove a skill or command (file structure, frontmatter contract, tool-neutral bodies, naming, keeping code-derived facts out, and the cross-agent-compatibility rules), read **[`../AUTHORING.md`](../AUTHORING.md)** first. It is the single source of truth for authoring conventions across all coding agents.

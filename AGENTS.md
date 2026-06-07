@@ -2,22 +2,36 @@
 
 Primary instruction document for AI coding agents working in this repository. Claude Code reads this via the root `CLAUDE.md → @AGENTS.md` import; AGENTS.md-aware tools (Cursor, Codex, others) discover it directly.
 
+## Session start (do this first, every new session)
+
+Before your first reply in a fresh session, run a quick skill-bridge check and greet the developer. Do this **once** at session start — don't repeat it on later turns. Run the check **silently first** — no "Welcome…" preamble before or alongside it — then emit the greeting exactly once, so the developer sees a single "👋 Welcome to OrangeHRM Starter".
+
+1. **Check the bridge for your tool — by running a command, never from memory or assumption.** You have not done this check until a tool call's output proves it. Claude Code: run `ls -d .claude/skills/*/ 2>/dev/null | wc -l` (the trailing-slash glob counts only skill directories, excluding the `README.md` catalog) and read the count from the output. Cursor: list `.cursor/rules/`. Codex / other AGENTS.md tools: no bridge needed — you read `.agents/` directly, so treat skills as loaded.
+
+   > **Hard gate:** Do **not** say "the bridge is loaded", "you're all set", or anything implying skills are active unless the command above actually ran *this turn* and returned a non-empty count. If you haven't run it, you don't know — treat the bridge as missing and run the check before greeting. Asserting the result without the command is a failure.
+2. **Bridge missing** (while `.agents/skills/` has content) → the project's 28 skills + commands are NOT loaded in your tool. Greet, say so, and hold off on deep project work until it's fixed:
+   > 👋 Welcome to OrangeHRM Starter. This repo ships 28 skills + slash commands to help with the codebase, but they aren't loaded in your tool yet. Run the one-time setup — prompt me: *"Please follow `.agents/SETUP.md` to set yourself up for this project."* — then start a new session.
+3. **Bridge loaded** (or you're Codex) → greet and point new developers at onboarding:
+   > 👋 Welcome to OrangeHRM Starter. First time here? Run `/onboard` to stand up the Docker dev environment. Otherwise, ask away — 28 skills auto-load by topic (`.agents/skills/README.md` is the catalog). And if you need links to the project's external resources — source repos, docs, downloads, the demo site, mobile apps — just ask; I'll pull them up.
+
 ## Skills and commands
 
-This repository ships **25 project-level skills** + **slash commands** under `.agents/`:
+This repository ships **28 project-level skills** + **slash commands** under `.agents/`:
 
 - **Skills** — architecture/convention/recipe documents that auto-load by task description. See [`.agents/skills/README.md`](.agents/skills/README.md) for the catalog.
-- **Slash commands** — `.agents/commands/<name>.md` files invoked as `/<name>` in Claude Code (or the equivalent in other tools). Current commands: `/ohrm-onboard` (new-dev setup walkthrough), `/agent-sync` (re-sync the generated `.claude/` and `.cursor/` bridges after editing).
+- **Slash commands** — `.agents/commands/<name>.md` files invoked as `/<name>` in Claude Code (or the equivalent in other tools). Current commands: `/onboard` (new-dev setup walkthrough), `/agent-sync` (re-sync the generated `.claude/` and `.cursor/` bridges after editing).
 
 > **If skills or commands aren't loading in your tool**, run the one-time setup: prompt the agent with *"Please follow `.agents/SETUP.md` to set yourself up for this project."*. Once loaded you may have to start a new session. For **Claude Code** it creates symlinks (Linux/macOS/WSL2) or copies (Windows) from `.claude/skills/` and `.claude/commands/` → the matching `.agents/` paths, since Claude Code only auto-discovers under `.claude/`. For **Cursor** it generates thin pointer rules under `.cursor/rules/` (one `.mdc` per skill, Agent-Requested by description) plus `.cursor/commands/` copies. Codex and other AGENTS.md-aware tools need no setup — they read `.agents/` in place.
 
-The source of truth is always under `.agents/` — don't edit files in `.claude/skills/`, `.claude/commands/`, or `.cursor/rules/`.
+**Before generating or updating any skill or command — or anything else under `.agents/` — read [`.agents/AUTHORING.md`](.agents/AUTHORING.md).** It is the single source of truth for authoring conventions: where files live (always `.agents/`, never the generated `.claude/` or `.cursor/` bridges), tool-neutral bodies, trigger-rich `description`s, bare kebab-case naming, frontmatter, and file structure — the rules that keep skills working across all coding agents (Claude Code, Cursor, Codex, Antigravity, Copilot, and other `AGENTS.md`-aware tools).
 
 ## What this repo is
 
 OrangeHRM Starter — the open-source edition of OrangeHRM (HRMS). Server is PHP on top of Symfony components + Doctrine ORM; client is a Vue 3 Multi page application with Backend Symfony routing. Distributed via SourceForge + Docker; current version tracked in `build/build.xml` (`<property name="version" .../>`) and `CHANGELOG.TXT`.
 
-PHP target: `^7.4|^8.0`. CI matrix runs against MySQL 5.7 and MariaDB 10.3 on PHP 8.3, and also validates install on PHP 8.4.
+External OrangeHRM Starter ecosystem references — related repos, public docs, release/download channels, mobile apps, demo, DockerHub, and AWS Marketplace links — live in [`.agents/skills/ecosystem/SKILL.md`](.agents/skills/ecosystem/SKILL.md).
+
+PHP support is defined by the Composer projects themselves (for the main app, read `src/composer.json`; for dev tooling, read `devTools/core/composer.json`). Installer runtime checks live in `installer/config/system_requirements.php`. CI support and database/PHP matrices are defined by the GitHub Actions workflows under `.github/workflows/`; inspect the current source files instead of relying on hardcoded versions in agent docs. See the `compatibility` and `dependencies` skills before changing supported versions or package metadata.
 
 ## Layout — the parts that matter
 
@@ -32,96 +46,53 @@ PHP target: `^7.4|^8.0`. CI matrix runs against MySQL 5.7 and MariaDB 10.3 on PH
 - `src/test/functional/` — Cypress E2E tests (separate `yarn` workspace).
 - `web/` — public document root (`index.php` bootstraps `src/lib/framework/Framework`).
 
-## Plugin architecture (read before adding a module)
+## Plugin architecture
 
-A plugin is wired up by **one entry class** at `src/plugins/orangehrm{Name}Plugin/config/{Name}PluginConfiguration.php`:
+Every backend module (Pim, Leave, Time, Admin, Auth, …) is a self-contained plugin under `src/plugins/orangehrm{Name}Plugin/`, wired up by **one entry class** — `config/{Name}PluginConfiguration.php` (implements `PluginConfigurationInterface`, registers services on each request) — with routes in the sibling `config/routes.yaml`.
 
-- Implements `OrangeHRM\Framework\PluginConfigurationInterface`. Its `initialize(Request)` is called on every request by `Framework::configurePlugins()` and registers services into the DI container (`ServiceContainer`).
-- Optionally implements `ConsoleConfigurationInterface` to register Symfony Console commands (picked up by `bin/console`).
-- Routes are declared in the sibling `config/routes.yaml`. REST endpoints route to `OrangeHRM\Core\Controller\Rest\V2\GenericRestController::handle` with `_api: <FQCN of Endpoint>` in defaults; the controller dispatches `GET/POST/PUT/DELETE` to the endpoint's CRUD methods.
-- Doctrine entities are autoloaded via the multi-path `OrangeHRM\Entity\` PSR-4 mapping in `src/composer.json` — **add new entity dirs there** when introducing them.
+The mechanics are documented in the skills, which are the source of truth — read the relevant one before working in that layer:
 
-REST endpoints extend `OrangeHRM\Core\Api\V2\Endpoint` and implement `CrudEndpoint` / `CollectionEndpoint` / `ResourceEndpoint`. Param parsing uses `RequestParams` + `ParamRuleCollection` validators. Responses are `EndpointResourceResult` / `EndpointCollectionResult` wrapping a model class (see `Api/Model/*`).
-
-Authorization is enforced via subscribers in `orangehrmCorePlugin/Subscriber/` (`ApiAuthorizationSubscriber`, `ScreenAuthorizationSubscriber`); role/data-group rules are seeded by migrations and by `devTools/core/console.php add-role-permission` / `add-data-group`.
+- REST endpoints, `routes.yaml`, request/response shaping → `rest-endpoints` (+ `rest-validation`, `rest-serialization`, `rest-openapi`)
+- Service layer & DI registration → `services`; single-entity persistence → `daos`
+- Doctrine entities & the `OrangeHRM\Entity\` PSR-4 mapping → `entities` (+ `doctrine-bootstrap`)
+- Role/data-group authorization → `authorization`
+- Plugin-registered console commands → `console-commands`
 
 ## Local development is Docker-based
 
-This repo is **not** intended to run against a host-installed PHP/MySQL/Node stack. The team standard is the companion repo [`orangehrm-os-dev-environment`](https://github.com/orangehrm/orangehrm-os-dev-environment) — Nginx + per-PHP-version containers (`php-7.4`…`php-8.3`) + a choice of MySQL/MariaDB containers, all defined via `docker compose`. The OHRM source tree is bind-mounted into the containers as `/var/www`, so edits show up live without a restart. PHP CLI, Composer, and Yarn commands all run **inside** the relevant PHP container (typically `os_dev_php83`).
+This repo is **not** intended to run against a host-installed PHP/MySQL/Node stack. The team standard is the companion repo [`orangehrm-os-dev-environment`](https://github.com/orangehrm/orangehrm-os-dev-environment) — Nginx + per-PHP-version + MySQL/MariaDB containers via `docker compose`, with the OHRM source tree bind-mounted into the PHP container. So PHP CLI, Composer, and Yarn commands all run **inside** that container.
 
-Details — container layout, hostnames (`http://php83/<subpath>/`), service list, `LOCAL_SRC` mounting convention, common `docker compose` invocations — live in `.claude/skills/dev-environment/SKILL.md`. **Read that skill first** if a task involves running anything locally, switching PHP/DB versions, or rebuilding containers.
-
-For a brand-new developer setting up from scratch, the interactive walkthrough is `/ohrm-onboard`. The command commands below are what to run *once you're shelled into the PHP container* (or, in rare cases, on a host that already has PHP/Composer/Node installed).
+Container layout, hostnames, the PHP/DB version matrix, `LOCAL_SRC`, and the `docker compose` invocations are documented in the **`dev-environment`** skill — **read it first** for anything involving running locally, switching PHP/DB versions, or rebuilding containers. Brand-new setup from scratch: run **`/onboard`**. The commands below assume you're shelled into the PHP container.
 
 ## Common commands
 
-All from repo root unless noted. Where these run depends on context — see "Local development is Docker-based" above; the default assumption is "inside the PHP container, with the OHRM checkout mounted under `/var/www/<subpath>/`."
+A minimal always-on reference. The owning skills carry the full set with current flags/versions — don't reproduce those from memory here.
 
-### Install / bootstrap
 ```bash
-composer install -d src
-composer install -d devTools/core
-cd src/client && yarn install && cd -
-cd src/test/functional && yarn install && cd -      # only if running Cypress
-cd installer/client && yarn install && cd -         # only if touching installer UI
-
-# Fresh install — interactive, current path:
-php installer/console install:on-new-database
-# Or against an already-created empty DB:
-php installer/console install:on-existing-database
-```
-
-For initial install, the **web installer at `http://php83/<subpath>/installer/`** is the easiest path — same prompts as the CLI command, but in the browser.
-
-### Backend tests (PHPUnit)
-Tests require a populated test DB — create it first (DB host is the *container* name when run inside the PHP container, e.g. `-H mariadb103`; defaults to `127.0.0.1` otherwise):
-```bash
-php devTools/core/console.php instance:create-test-db -p root --dump-options=--ssl=0
-./src/vendor/bin/phpunit                            # all suites
-./src/vendor/bin/phpunit --testsuite Pim            # one plugin (names in phpunit.xml)
-./src/vendor/bin/phpunit src/plugins/orangehrmPimPlugin/test/Dao/EmployeeDaoTest.php
-./src/vendor/bin/phpunit --filter testGetEmployeeById <path-to-test>
-```
-`instance:` commands have an `i:` shorthand (e.g. `i:create-test-db`, `i:reset`, `i:reinstall`) — CI scripts use the short form.
-
-### Frontend tests (Jest, in `src/client/`)
-```bash
-cd src/client
-yarn test:unit                                      # all
-yarn test:unit path/to/file.spec.ts                 # single file
-```
-
-### Linting
-```bash
-cd src/client && yarn lint                          # Vue/TS, --max-warnings=0
-cd installer/client && yarn lint
-cd src/test/functional && yarn lint                 # Cypress
-php devTools/core/console.php php-cs-fix --php php8.3   # PHP-CS-Fixer (auto-fix); CI fails if it changes any file
-```
-
-### Build / run
-```bash
-cd src/client && yarn serve                         # dev server
-cd src/client && yarn dev                           # build --watch into web/dist
-cd src/client && yarn build                         # production build into web/dist
-php devTools/core/console.php i:reset               # wipe & re-init DB
-php devTools/core/console.php i:reinstall           # re-run installer against current config
+composer install -d src && composer install -d devTools/core   # backend deps
+cd src/client && yarn install && cd -                           # frontend deps
+php installer/console install:on-new-database                   # fresh install (or web installer at /installer/)
+php devTools/core/console.php php-cs-fix                         # PHP style — run before every commit; CI fails if it changes a file
 php bin/console cache:clear
-php bin/console orm:generate-proxies
-php devTools/core/console.php generate-open-api-doc --throw   # rebuild build/orangehrm-v2.json
 ```
 
-Cypress lives in `src/test/functional/` — run `yarn open` (interactive) or `yarn test` (headless) from there.
+For everything else, go to the skill that owns it — it is the source of truth:
+
+- **Run tests** — PHPUnit / Jest / Cypress, plus the required `instance:create-test-db` step → `testing`
+- **Composer / Yarn dependency commands** → `dependencies`
+- **Serve / build, Docker, DB reset & reinstall** → `dev-environment`
+- **Which console** (`bin/console` vs `devTools/core/console.php`) and how commands register → `console-commands`
+- **Regenerate the OpenAPI doc** → `rest-openapi`
 
 ## Conventions to follow
+
+Project-wide conventions no single skill owns:
 
 - **Branch and commit naming.** Every branch and commit starts with a JIRA ticket key: e.g. branch `OHRM5X-1234`, commit `OHRM5X-1234: Add employee export endpoint`. Visible throughout `git log`. PRs are squash-merged by reviewers.
 - **License header.** Every PHP and `.vue` source file starts with the GPL header block from existing files. PHP-CS-Fixer doesn't check it but reviewers do.
 - **PHP style.** PSR-12 + the project's `.php-cs-fixer.dist.php` (short array syntax, no unused imports, etc.). Always run `php-cs-fix` before committing; CI hard-fails if it touches any file.
-- **Adding a REST endpoint.** Create an `Api/{Name}API.php` extending `Endpoint` (+ relevant CRUD interface), register the path in the plugin's `config/routes.yaml` pointing at `GenericRestController::handle` with `_api` set to your FQCN. Don't add a per-endpoint controller.
-- **Adding a Doctrine entity.** Place it in `plugins/orangehrm{X}Plugin/entity/`. If the plugin isn't already in the `OrangeHRM\Entity\` PSR-4 array in `src/composer.json`, add it there and run `composer dump-autoload -d src` so Doctrine can find it.
-- **DB schema changes.** Always go through a new migration under `installer/Migration/V{next_version}/` — never edit an existing migration. Bump the version in `build/build.xml` and append a `CHANGELOG.TXT` entry when releasing.
-- **Frontend plugin code** belongs under `src/client/src/orangehrm{X}Plugin/` (mirror the backend plugin name). Page entry points are registered via `src/client/src/pages.ts`.
+
+Layer-specific recipes — adding a REST endpoint, a Doctrine entity, a DB migration, or frontend plugin code — live in the matching skills (`rest-endpoints`, `entities`, `migrations`, `frontend-pages`), which are the source of truth for those steps.
 
 ## Things that bite
 
