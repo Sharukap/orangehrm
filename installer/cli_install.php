@@ -156,4 +156,15 @@ $request = new Request();
 $request->setMethod(Request::METHOD_POST);
 (new InstallerDataRegistrationAPI())->handle($request);
 
+// Remove the CLI install config now that the install succeeded. It holds the
+// plaintext DB credentials supplied by the operator and must not persist in the
+// web-accessible installer/ directory post-install (OPOS-2). This is the
+// portable mitigation — the root .htaccess deny rule only protects Apache.
+$cliConfigPath = realpath(__DIR__ . '/cli_install_config.yaml');
+if ($cliConfigPath !== false && is_file($cliConfigPath) && @unlink($cliConfigPath)) {
+    echo "Removed cli_install_config.yaml (it contained plaintext DB credentials)\n";
+} else {
+    echo "WARNING: Could not remove '$cliConfigPath'. Delete it manually — it contains plaintext DB credentials.\n";
+}
+
 echo "Done\n";
