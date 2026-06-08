@@ -19,9 +19,12 @@
 
 namespace OrangeHRM\Tests\Claim\Dao;
 
+use Doctrine\ORM\TransactionRequiredException;
 use OrangeHRM\Claim\Dao\ClaimDao;
 use OrangeHRM\Claim\Dto\ClaimRequestSearchFilterParams;
 use OrangeHRM\Config\Config;
+use OrangeHRM\Entity\ClaimRequest;
+use OrangeHRM\ORM\Doctrine;
 use OrangeHRM\Tests\Util\KernelTestCase;
 use OrangeHRM\Tests\Util\TestDataService;
 
@@ -52,5 +55,30 @@ class ClaimDaoRequestTest extends KernelTestCase
         $claimRequestSearchFilterParams->setEmpNumbers([4]);
         $claimRequests = $this->claimDao->getClaimRequestList($claimRequestSearchFilterParams);
         $this->assertEquals(4, count($claimRequests));
+    }
+
+    /**
+     * The locked read must take a pessimistic write lock: Doctrine raises
+     * TransactionRequiredException when a pessimistic-write query is issued without an
+     * active transaction, which confirms the read is locked rather than a plain findOneBy().
+     */
+    public function testGetClaimRequestByIdForUpdateRequiresTransactionForLock(): void
+    {
+        $this->expectException(TransactionRequiredException::class);
+        $this->claimDao->getClaimRequestByIdForUpdate(1);
+    }
+
+    public function testGetClaimRequestByIdForUpdateReturnsRequestWithinTransaction(): void
+    {
+        $connection = Doctrine::getEntityManager()->getConnection();
+        $connection->beginTransaction();
+        try {
+            $result = $this->claimDao->getClaimRequestByIdForUpdate(1);
+            $this->assertInstanceOf(ClaimRequest::class, $result);
+            $this->assertEquals(1, $result->getId());
+            $this->assertNull($this->claimDao->getClaimRequestByIdForUpdate(99999));
+        } finally {
+            $connection->rollBack();
+        }
     }
 }

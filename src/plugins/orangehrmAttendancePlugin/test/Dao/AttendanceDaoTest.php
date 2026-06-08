@@ -21,6 +21,7 @@ namespace OrangeHRM\Tests\Attendance\Dao;
 
 use DateTime;
 use DateTimeZone;
+use Doctrine\ORM\TransactionRequiredException;
 use Exception;
 use OrangeHRM\Admin\Service\CompanyStructureService;
 use OrangeHRM\Attendance\Dao\AttendanceDao;
@@ -30,6 +31,7 @@ use OrangeHRM\Attendance\Exception\AttendanceServiceException;
 use OrangeHRM\Config\Config;
 use OrangeHRM\Core\Service\DateTimeHelperService;
 use OrangeHRM\Framework\Services;
+use OrangeHRM\ORM\Doctrine;
 use OrangeHRM\Tests\Util\KernelTestCase;
 use OrangeHRM\Tests\Util\TestDataService;
 use OrangeHRM\Time\Dto\AttendanceReportSearchFilterParams;
@@ -110,6 +112,52 @@ class AttendanceDaoTest extends KernelTestCase
             5
         );
         $this->assertTrue($overlapStatus);
+    }
+
+    /**
+     * The locked overlap check must take a pessimistic write lock: Doctrine raises
+     * TransactionRequiredException when a pessimistic-write query runs without an active
+     * transaction, which confirms the overlap read is locked rather than a plain SELECT.
+     */
+    public function testCheckForPunchInOverLappingRecordsForUpdateRequiresTransactionForLock(): void
+    {
+        $utcTimeZone = new DateTimeZone(DateTimeHelperService::TIMEZONE_UTC);
+        $this->expectException(TransactionRequiredException::class);
+        $this->attendanceDao->checkForPunchInOverLappingRecordsForUpdate(
+            new DateTime("2011-04-22 09:25:00", $utcTimeZone),
+            5
+        );
+    }
+
+    public function testCheckForPunchInOverLappingRecordsForUpdateWithinTransaction(): void
+    {
+        $utcTimeZone = new DateTimeZone(DateTimeHelperService::TIMEZONE_UTC);
+        $connection = Doctrine::getEntityManager()->getConnection();
+        $connection->beginTransaction();
+        try {
+            // Employee 5 last punched out; a fresh punch-in does not overlap.
+            $this->assertFalse(
+                $this->attendanceDao->checkForPunchInOverLappingRecordsForUpdate(
+                    new DateTime("2011-04-22 09:25:00", $utcTimeZone),
+                    5
+                )
+            );
+            // An overlapping time for the same employee is detected.
+            $this->assertTrue(
+                $this->attendanceDao->checkForPunchInOverLappingRecordsForUpdate(
+                    new DateTime("2011-04-21 09:26:00", $utcTimeZone),
+                    5
+                )
+            );
+            // Employee 4 is already punched in: a second punch-in must be rejected.
+            $this->expectException(AttendanceServiceException::class);
+            $this->attendanceDao->checkForPunchInOverLappingRecordsForUpdate(
+                new DateTime("2022-01-27 09:23:00", $utcTimeZone),
+                4
+            );
+        } finally {
+            $connection->rollBack();
+        }
     }
 
     public function testPunchOutOverlapRecords(): void
