@@ -42,7 +42,6 @@ use OrangeHRM\Entity\OpenIdProvider;
 use OrangeHRM\OpenidAuthentication\Api\Model\ProviderModel;
 use OrangeHRM\OpenidAuthentication\Dto\ProviderSearchFilterParams;
 use OrangeHRM\OpenidAuthentication\Traits\Service\SocialMediaAuthenticationServiceTrait;
-use OrangeHRM\OpenidAuthentication\Utility\OIDCUrlValidator;
 use OrangeHRM\ORM\Exception\TransactionException;
 
 class ProviderAPI extends Endpoint implements CrudEndpoint
@@ -277,7 +276,11 @@ class ProviderAPI extends Endpoint implements CrudEndpoint
                 $this->getNameRule($this->getOpenIdProviderCommonUniqueOption()),
             ),
             $this->getValidationDecorator()->requiredParamRule(
-                $this->getProviderUrlParamRule(),
+                new ParamRule(
+                    self::PARAMETER_URL,
+                    new Rule(Rules::STRING_TYPE),
+                    new Rule(Rules::LENGTH, [null , self::PARAM_RULE_PROVIDER_URL_MAX_LENGTH])
+                ),
                 true
             ),
             $this->getValidationDecorator()->requiredParamRule(
@@ -301,35 +304,6 @@ class ProviderAPI extends Endpoint implements CrudEndpoint
                 )
             ),
         );
-    }
-
-    /**
-     * Provider URL rule: string + max length + an SSRF allowlist check that rejects non-http(s)
-     * schemes and hosts resolving to private/reserved addresses, so an internal URL can never be
-     * persisted as a provider.
-     *
-     * @return ParamRule
-     */
-    protected function getProviderUrlParamRule(): ParamRule
-    {
-        return new ParamRule(
-            self::PARAMETER_URL,
-            new Rule(Rules::STRING_TYPE),
-            new Rule(Rules::LENGTH, [null, self::PARAM_RULE_PROVIDER_URL_MAX_LENGTH]),
-            new Rule(Rules::CALLBACK, [
-                function ($url): bool {
-                    return $this->getUrlValidator()->isAllowedProviderUrl((string)$url);
-                }
-            ])
-        );
-    }
-
-    /**
-     * @return OIDCUrlValidator
-     */
-    protected function getUrlValidator(): OIDCUrlValidator
-    {
-        return new OIDCUrlValidator();
     }
 
     /**
@@ -527,7 +501,11 @@ class ProviderAPI extends Endpoint implements CrudEndpoint
                 $this->getNameRule($uniqueOption),
             ),
             $this->getValidationDecorator()->requiredParamRule(
-                $this->getProviderUrlParamRule(),
+                new ParamRule(
+                    self::PARAMETER_URL,
+                    new Rule(Rules::STRING_TYPE),
+                    new Rule(Rules::LENGTH, [null , self::PARAM_RULE_PROVIDER_URL_MAX_LENGTH])
+                ),
                 true
             ),
             $this->getValidationDecorator()->requiredParamRule(
