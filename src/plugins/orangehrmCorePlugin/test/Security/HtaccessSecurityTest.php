@@ -23,12 +23,6 @@ use OrangeHRM\Config\Config;
 use OrangeHRM\Tests\Util\TestCase;
 
 /**
- * Guards the document-root Apache hardening rules.
- *
- * Regression cover for OPOS-2: the root `.htaccess` denied `*.yml` but not
- * `*.yaml`, leaving `installer/cli_install_config.yaml` (which holds plaintext
- * DB credentials post-install) fetchable by direct URL on Apache deployments.
- *
  * @group Core
  * @group Security
  */
@@ -43,14 +37,11 @@ class HtaccessSecurityTest extends TestCase
         $this->htaccessContents = file_get_contents($htaccessPath);
     }
 
-    /**
-     * Sensitive YAML credential files must be denied by the root .htaccess.
-     */
     public function testYamlFilesAreDenied(): void
     {
         $this->assertTrue(
             $this->isDeniedByHtaccess('cli_install_config.yaml'),
-            'installer/cli_install_config.yaml must be blocked by the root .htaccess (OPOS-2)'
+            'installer/cli_install_config.yaml must be blocked by the root .htaccess'
         );
         $this->assertTrue(
             $this->isDeniedByHtaccess('anything.yaml'),
@@ -58,9 +49,6 @@ class HtaccessSecurityTest extends TestCase
         );
     }
 
-    /**
-     * Existing `.yml` coverage must not regress.
-     */
     public function testYmlFilesRemainDenied(): void
     {
         $this->assertTrue(
@@ -69,10 +57,6 @@ class HtaccessSecurityTest extends TestCase
         );
     }
 
-    /**
-     * Sanity check: regular application entry points must stay reachable, so
-     * the assertions above are meaningful and not "everything is denied".
-     */
     public function testRegularFilesAreNotDenied(): void
     {
         $this->assertFalse(
@@ -81,14 +65,8 @@ class HtaccessSecurityTest extends TestCase
         );
     }
 
-    /**
-     * Mirrors how Apache evaluates the deny rules in this .htaccess: every
-     * `<Files glob>` block is matched with fnmatch and every `<FilesMatch regex>`
-     * block with PCRE. Only blocks that actually deny access are considered.
-     */
     private function isDeniedByHtaccess(string $fileName): bool
     {
-        // <Files PATTERN> ... </Files> (glob match)
         if (preg_match_all('#<Files\s+([^>~]+?)\s*>(.*?)</Files>#is', $this->htaccessContents, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 if ($this->blockDenies($match[2]) && fnmatch(trim($match[1]), $fileName)) {
@@ -97,7 +75,6 @@ class HtaccessSecurityTest extends TestCase
             }
         }
 
-        // <FilesMatch "REGEX"> ... </FilesMatch> (PCRE match)
         if (preg_match_all('#<FilesMatch\s+"(.*?)"\s*>(.*?)</FilesMatch>#is', $this->htaccessContents, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 if ($this->blockDenies($match[2]) && preg_match('#' . $match[1] . '#', $fileName)) {
@@ -109,10 +86,6 @@ class HtaccessSecurityTest extends TestCase
         return false;
     }
 
-    /**
-     * A directive block denies access if it carries an (uncommented) deny rule
-     * in either the Apache 2.2 or 2.4 syntax.
-     */
     private function blockDenies(string $blockBody): bool
     {
         foreach (explode("\n", $blockBody) as $line) {
