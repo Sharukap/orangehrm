@@ -47,6 +47,7 @@ class ConfigService
     public const KEY_ADMIN_DEFAULT_WORKSHIFT_START_TIME = 'admin.default_workshift_start_time';
     public const KEY_ADMIN_DEFAULT_WORKSHIFT_END_TIME = 'admin.default_workshift_end_time';
     public const KEY_OPENID_PROVIDER_ADDED = 'openId.provider.added';
+    public const KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS = 'oidc.allow_private_provider_hosts';
     public const KEY_OPEN_SOURCE_INTEGRATIONS = 'open_source_integrations';
     public const KEY_INSTANCE_IDENTIFIER = 'instance.identifier';
     public const KEY_SENDMAIL_PATH = 'email_config.sendmail_path';
@@ -391,6 +392,27 @@ class ConfigService
     public function setOpenIdProviderAdded($value = 'off'): void
     {
         $this->_setConfigValue(self::KEY_OPENID_PROVIDER_ADDED, $value);
+    }
+
+    /**
+     * Whether OIDC provider URLs are allowed to resolve to private/internal network addresses.
+     * Defaults to false (secure): provider URLs pointing at private/reserved/loopback/link-local/
+     * metadata/CGNAT ranges are rejected to prevent SSRF. Admins running an OIDC provider on an
+     * internal network (e.g. self-hosted Keycloak) can opt in by setting this config to 'Yes'.
+     *
+     * @return bool
+     */
+    public function isOidcPrivateProviderHostAllowed(): bool
+    {
+        return $this->_getConfigValue(self::KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS) === 'Yes';
+    }
+
+    /**
+     * @param bool $allowed
+     */
+    public function setOidcPrivateProviderHostAllowed(bool $allowed): void
+    {
+        $this->_setConfigValue(self::KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS, $allowed ? 'Yes' : 'No');
     }
 
     /**

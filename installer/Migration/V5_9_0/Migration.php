@@ -38,6 +38,20 @@ class Migration extends AbstractMigration
         $this->insertWorkspaceNotificationMenuItem();
 
         $this->getLangStringHelper()->insertOrUpdateLangStrings(__DIR__, 'admin');
+
+        $this->seedOidcPrivateProviderHostsConfig();
+    }
+
+    /**
+     * Seed the OIDC provider-URL SSRF opt-out (default off). The application already treats an
+     * absent key as off, so this only makes the setting discoverable in hs_hr_config; seed only
+     * when missing so an admin who has already enabled it is not reset.
+     */
+    private function seedOidcPrivateProviderHostsConfig(): void
+    {
+        if ($this->getConfigHelper()->getConfigValue('oidc.allow_private_provider_hosts') === null) {
+            $this->getConfigHelper()->setConfigValue('oidc.allow_private_provider_hosts', 'No');
+        }
     }
 
     private function getLangStringHelper(): LangStringHelper
