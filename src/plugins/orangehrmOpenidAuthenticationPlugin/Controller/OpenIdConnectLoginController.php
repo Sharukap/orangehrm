@@ -74,16 +74,6 @@ class OpenIdConnectLoginController extends AbstractVueController implements Publ
         $this->getAuthUser()->setAttribute(AuthUser::OPENID_PROVIDER_ID, $provider->getId());
         $oidcClient->authenticate();
 
-        // Best-effort: cache the discovery document so subsequent logins skip live discovery.
-        try {
-            $this->getSocialMediaAuthenticationService()->cacheDiscoveredConfig(
-                $provider->getOpenIdProvider()->getProviderUrl(),
-                $oidcClient
-            );
-        } catch (\Throwable $e) {
-            // Best-effort cache population; must never block the login flow.
-        }
-
         //redirect to consent always
         $authUrl = $oidcClient->getGeneratedAuthUrl() . '&prompt=consent';
         return new RedirectResponse($authUrl);

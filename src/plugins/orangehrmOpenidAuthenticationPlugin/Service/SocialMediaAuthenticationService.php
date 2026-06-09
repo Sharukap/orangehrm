@@ -26,7 +26,6 @@ use OrangeHRM\Authentication\Exception\AuthenticationException;
 use OrangeHRM\Authentication\Service\AuthenticationService;
 use OrangeHRM\Authentication\Traits\Service\AuthenticationServiceTrait;
 use OrangeHRM\Core\Traits\Auth\AuthUserTrait;
-use OrangeHRM\Core\Traits\CacheTrait;
 use OrangeHRM\Core\Utility\EncryptionHelperTrait;
 use OrangeHRM\Entity\AuthProviderExtraDetails;
 use OrangeHRM\Entity\EmployeeTerminationRecord;
@@ -46,19 +45,12 @@ class SocialMediaAuthenticationService
     use AuthenticationServiceTrait;
     use EncryptionHelperTrait;
     use AuthUserTrait;
-    use CacheTrait;
 
     private AuthenticationService $authenticationService;
     private AuthProviderDao $authProviderDao;
     private UserDao $userDao;
 
     public const SCOPE = 'email';
-
-    /**
-     * Cross-request cache of provider OIDC discovery documents.
-     */
-    private const WELL_KNOWN_CACHE_PREFIX = 'oidc.well_known.';
-    private const WELL_KNOWN_CACHE_TTL = 86400;
 
     /**
      * @return AuthProviderDao
@@ -85,10 +77,8 @@ class SocialMediaAuthenticationService
      */
     public function initiateAuthentication(AuthProviderExtraDetails $provider, string $scope, string $redirectUrl): OpenIDConnectClient
     {
-        $providerUrl = $provider->getOpenIdProvider()->getProviderUrl();
-
         $oidcClient = new OpenIDConnectClient(
-            $providerUrl,
+            $provider->getOpenIdProvider()->getProviderUrl(),
             $provider->getClientId(),
             self::encryptionEnabled()
                 ? self::getCryptographer()->decrypt($provider->getClientSecret())
@@ -98,64 +88,7 @@ class SocialMediaAuthenticationService
         $oidcClient->addScope([$scope]);
         $oidcClient->setRedirectURL($redirectUrl);
 
-        // If the discovery document is cached, inject it so this (public) login path performs no
-        // live discovery fetch. When absent, discovery still runs but is guarded + IP-pinned.
-        $cachedConfig = $this->getCachedWellKnownConfig($providerUrl);
-        if (is_array($cachedConfig)) {
-            $oidcClient->providerConfigParam($cachedConfig);
-        }
-
         return $oidcClient;
-    }
-
-    /**
-     * Store the discovery document fetched by the client (if any) for reuse on later logins.
-     *
-     * @param string $providerUrl
-     * @param OpenIDConnectClient $oidcClient
-     */
-    public function cacheDiscoveredConfig(string $providerUrl, OpenIDConnectClient $oidcClient): void
-    {
-        $config = $oidcClient->getCapturedWellKnownConfig();
-        if ($config === null) {
-            return;
-        }
-        try {
-            $cacheItem = $this->getCache()->getItem($this->getWellKnownCacheKey($providerUrl));
-            $cacheItem->set($config);
-            $cacheItem->expiresAfter(self::WELL_KNOWN_CACHE_TTL);
-            $this->getCache()->save($cacheItem);
-        } catch (\Throwable $e) {
-            // Cache is an optimisation only; never let a cache failure disrupt authentication.
-        }
-    }
-
-    /**
-     * @param string $providerUrl
-     * @return array|null
-     */
-    private function getCachedWellKnownConfig(string $providerUrl): ?array
-    {
-        try {
-            $cacheItem = $this->getCache()->getItem($this->getWellKnownCacheKey($providerUrl));
-            if (!$cacheItem->isHit()) {
-                return null;
-            }
-            $config = json_decode((string)$cacheItem->get(), true);
-            return is_array($config) ? $config : null;
-        } catch (\Throwable $e) {
-            // Cache unavailable — fall back to (guarded) live discovery.
-            return null;
-        }
-    }
-
-    /**
-     * @param string $providerUrl
-     * @return string
-     */
-    private function getWellKnownCacheKey(string $providerUrl): string
-    {
-        return self::WELL_KNOWN_CACHE_PREFIX . md5($providerUrl);
     }
 
     /**
