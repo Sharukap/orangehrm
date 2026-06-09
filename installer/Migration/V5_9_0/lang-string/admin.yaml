@@ -88,11 +88,6 @@ langStrings:
     value: 'Employees on Leave Today'
     unitId: workspace_notification_event_leave_today
 
-  # Status
-  -
-    value: 'Status'
-    unitId: status
-
   # Table empty-state + cron hint
   -
     value: 'No registrations yet. Fill the form above and click + Add Registration to create one.'
@@ -113,9 +108,6 @@ langStrings:
   -
     value: 'Another registration already targets the same event type, workspace channel, and subunit. Saving this will cause the same message to be sent more than once per day. Do you want to save anyway?'
     unitId: workspace_notification_duplicate_dialog_subtitle
-  -
-    value: 'Save'
-    unitId: workspace_notification_save_anyway
   -
     value: 'Go back and edit'
     unitId: workspace_notification_go_back_and_fix

@@ -224,7 +224,7 @@
       ref="duplicateDialog"
       :title="$t('admin.workspace_notification_duplicate_dialog_title')"
       :subtitle="$t('admin.workspace_notification_duplicate_dialog_subtitle')"
-      :confirm-label="$t('admin.workspace_notification_save_anyway')"
+      :confirm-label="$t('general.save')"
       :cancel-label="$t('admin.workspace_notification_go_back_and_fix')"
       icon="warning"
     ></confirmation-dialog>
