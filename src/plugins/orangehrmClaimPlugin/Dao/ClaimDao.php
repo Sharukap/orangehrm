@@ -355,8 +355,9 @@ class ClaimDao extends BaseDao
             ->setParameter('id', $id);
         $qb->andWhere('claimRequest.isDeleted = :isDeleted')
             ->setParameter('isDeleted', false);
-        $qb->getQuery()->setLockMode(LockMode::PESSIMISTIC_WRITE);
-        return $qb->getQuery()->getOneOrNullResult();
+        $query = $qb->getQuery();
+        $query->setLockMode(LockMode::PESSIMISTIC_WRITE);
+        return $query->getOneOrNullResult();
     }
 
     /**
