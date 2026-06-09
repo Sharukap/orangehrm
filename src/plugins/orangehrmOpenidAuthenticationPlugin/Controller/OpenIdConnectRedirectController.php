@@ -98,6 +98,12 @@ class OpenIdConnectRedirectController extends AbstractVueController implements P
 
             $oidcClient->authenticate();
 
+            // Cache the discovery document so subsequent logins skip live discovery.
+            $this->getSocialMediaAuthenticationService()->cacheDiscoveredConfig(
+                $authProviderExtraDetails->getOpenIdProvider()->getProviderUrl(),
+                $oidcClient
+            );
+
             $userCredentials = new UserCredential();
             $userCredentials->setUsername($oidcClient->requestUserInfo('email'));
             $user = $this->getSocialMediaAuthenticationService()->getUserForAuthenticate($userCredentials);
