@@ -19,6 +19,7 @@
 
 use OrangeHRM\Authentication\Dto\UserCredential;
 use OrangeHRM\Config\Config;
+use OrangeHRM\Framework\Filesystem\Filesystem;
 use OrangeHRM\Framework\Http\Session\MemorySessionStorage;
 use OrangeHRM\Framework\Http\Session\Session;
 use OrangeHRM\Framework\ServiceContainer;
@@ -66,7 +67,8 @@ $session = new Session($sessionStorage);
 $session->start();
 ServiceContainer::getContainer()->set(Services::SESSION, $session);
 
-$cliConfig = Yaml::parseFile(realpath(__DIR__ . '/cli_install_config.yaml'));
+$cliConfigPath = realpath(__DIR__ . '/cli_install_config.yaml');
+$cliConfig = Yaml::parseFile($cliConfigPath);
 
 if ($cliConfig['license']['agree'] != 'y') {
     $licenseFilePath = realpath(__DIR__ . '/../LICENSE');
@@ -156,11 +158,14 @@ $request = new Request();
 $request->setMethod(Request::METHOD_POST);
 (new InstallerDataRegistrationAPI())->handle($request);
 
-$cliConfigPath = realpath(__DIR__ . '/cli_install_config.yaml');
-if ($cliConfigPath !== false && is_file($cliConfigPath) && @unlink($cliConfigPath)) {
-    echo "Removed cli_install_config.yaml (it contained plaintext DB credentials)\n";
-} else {
-    echo "WARNING: Could not remove '$cliConfigPath'. Delete it manually — it contains plaintext DB credentials.\n";
+$filesystem = new Filesystem();
+if ($cliConfigPath !== false && $filesystem->exists($cliConfigPath)) {
+    try {
+        $filesystem->remove($cliConfigPath);
+        echo "Removed cli_install_config.yaml (it contained plaintext DB credentials)\n";
+    } catch (Throwable $e) {
+        echo "WARNING: Could not remove '$cliConfigPath'. Delete it manually — it contains plaintext DB credentials.\n";
+    }
 }
 
 echo "Done\n";
