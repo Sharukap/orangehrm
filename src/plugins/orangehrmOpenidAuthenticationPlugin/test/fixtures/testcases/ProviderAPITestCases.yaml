@@ -187,3 +187,45 @@ Create:
       providerUrl: 'https://azure.auth.com'
       status: true
       clientId: '6f2182cc5083a84083b'
+
+  'Create Auth Provider - Okta vendor URL':
+    userId: 1
+    services:
+      oidc.social_media_auth_service: \OrangeHRM\OpenidAuthentication\Service\SocialMediaAuthenticationService
+    body:
+      name: 'Okta'
+      url: 'https://dev-12345678.okta.com/oauth2/default'
+      clientId: '0oa1b2c3d4e5f6g7h8i9'
+      clientSecret: 'aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcd'
+    data:
+      id: 5
+      providerName: 'Okta'
+      providerUrl: 'https://dev-12345678.okta.com/oauth2/default'
+      status: true
+      clientId: '0oa1b2c3d4e5f6g7h8i9'
+
+  'Create Auth Provider - non-http scheme rejected':
+    userId: 1
+    services:
+      oidc.social_media_auth_service: \OrangeHRM\OpenidAuthentication\Service\SocialMediaAuthenticationService
+    body:
+      name: 'Evil'
+      url: 'file:///etc/passwd'
+      clientId: '6f2182cc5083a84083b'
+      clientSecret: '0f0cc6f2182cc5083a84083baf5f43c609ec9752'
+    exception:
+      class: '\OrangeHRM\Core\Api\V2\Exception\InvalidParamException'
+      message: 'Invalid Parameter'
+
+  'Create Auth Provider - malformed URL rejected':
+    userId: 1
+    services:
+      oidc.social_media_auth_service: \OrangeHRM\OpenidAuthentication\Service\SocialMediaAuthenticationService
+    body:
+      name: 'Broken'
+      url: 'not-a-url'
+      clientId: '6f2182cc5083a84083b'
+      clientSecret: '0f0cc6f2182cc5083a84083baf5f43c609ec9752'
+    exception:
+      class: '\OrangeHRM\Core\Api\V2\Exception\InvalidParamException'
+      message: 'Invalid Parameter'

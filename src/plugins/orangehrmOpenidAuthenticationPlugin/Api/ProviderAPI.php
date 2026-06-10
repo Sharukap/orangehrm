@@ -276,11 +276,7 @@ class ProviderAPI extends Endpoint implements CrudEndpoint
                 $this->getNameRule($this->getOpenIdProviderCommonUniqueOption()),
             ),
             $this->getValidationDecorator()->requiredParamRule(
-                new ParamRule(
-                    self::PARAMETER_URL,
-                    new Rule(Rules::STRING_TYPE),
-                    new Rule(Rules::LENGTH, [null , self::PARAM_RULE_PROVIDER_URL_MAX_LENGTH])
-                ),
+                $this->getProviderUrlParamRule(),
                 true
             ),
             $this->getValidationDecorator()->requiredParamRule(
@@ -303,6 +299,24 @@ class ProviderAPI extends Endpoint implements CrudEndpoint
                     new Rule(Rules::BOOL_TYPE)
                 )
             ),
+        );
+    }
+
+    /**
+     * Write-time format guard for the provider URL: a well-formed http(s) URL within the
+     * length limit. This is UX/defence-in-depth only — the private/internal-address SSRF
+     * decision is enforced at request time by {@see \OrangeHRM\OpenidAuthentication\OpenID\OpenIDConnectClient}.
+     *
+     * @return ParamRule
+     */
+    protected function getProviderUrlParamRule(): ParamRule
+    {
+        return new ParamRule(
+            self::PARAMETER_URL,
+            new Rule(Rules::STRING_TYPE),
+            new Rule(Rules::LENGTH, [null, self::PARAM_RULE_PROVIDER_URL_MAX_LENGTH]),
+            new Rule(Rules::URL),
+            new Rule(Rules::REGEX, ['/^https?:\/\//i'])
         );
     }
 
@@ -501,11 +515,7 @@ class ProviderAPI extends Endpoint implements CrudEndpoint
                 $this->getNameRule($uniqueOption),
             ),
             $this->getValidationDecorator()->requiredParamRule(
-                new ParamRule(
-                    self::PARAMETER_URL,
-                    new Rule(Rules::STRING_TYPE),
-                    new Rule(Rules::LENGTH, [null , self::PARAM_RULE_PROVIDER_URL_MAX_LENGTH])
-                ),
+                $this->getProviderUrlParamRule(),
                 true
             ),
             $this->getValidationDecorator()->requiredParamRule(

@@ -56,6 +56,8 @@ class SocialMediaAuthenticationServiceTest extends KernelTestCase
 
     public function testInitiateAuthentication(): void
     {
+        $this->createKernelWithMockServices([Services::CONFIG_SERVICE => new ConfigService()]);
+
         $provider = $this->socialMediaAuthenticationService->getAuthProviderDao()->getAuthProviderDetailsByProviderId(1);
         $scope = 'email';
         $redirectUrl = 'https://accounts.google.com/auth';

@@ -36,6 +36,7 @@ class Migration extends AbstractMigration
         $this->getDataGroupHelper()->insertScreenPermissions(__DIR__ . '/permission/screen.yaml');
         $this->getDataGroupHelper()->insertApiPermissions(__DIR__ . '/permission/api.yaml');
         $this->insertWorkspaceNotificationMenuItem();
+        $this->insertOidcAllowPrivateProviderHostsConfig();
 
         $this->getLangStringHelper()->insertOrUpdateLangStrings(__DIR__, 'admin');
     }
@@ -142,6 +143,27 @@ class Migration extends AbstractMigration
     }
 
     private const CONFIG_KEY_WORKSPACE_ENABLED = 'workspace.notifications.enabled';
+    private const CONFIG_KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS = 'oidc.allow_private_provider_hosts';
+
+    private function insertOidcAllowPrivateProviderHostsConfig(): void
+    {
+        $exists = $this->createQueryBuilder()
+            ->select('config.name')
+            ->from('hs_hr_config', 'config')
+            ->where('config.name = :name')
+            ->setParameter('name', self::CONFIG_KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS)
+            ->executeQuery()
+            ->fetchOne();
+
+        if ($exists === false) {
+            $this->createQueryBuilder()
+                ->insert('hs_hr_config')
+                ->values(['name' => ':name', 'value' => ':value'])
+                ->setParameter('name', self::CONFIG_KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS)
+                ->setParameter('value', '0')
+                ->executeQuery();
+        }
+    }
 
     private function insertWorkspaceNotificationMenuItem(): void
     {

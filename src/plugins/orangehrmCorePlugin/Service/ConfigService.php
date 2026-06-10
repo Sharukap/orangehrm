@@ -47,6 +47,7 @@ class ConfigService
     public const KEY_ADMIN_DEFAULT_WORKSHIFT_START_TIME = 'admin.default_workshift_start_time';
     public const KEY_ADMIN_DEFAULT_WORKSHIFT_END_TIME = 'admin.default_workshift_end_time';
     public const KEY_OPENID_PROVIDER_ADDED = 'openId.provider.added';
+    public const KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS = 'oidc.allow_private_provider_hosts';
     public const KEY_OPEN_SOURCE_INTEGRATIONS = 'open_source_integrations';
     public const KEY_INSTANCE_IDENTIFIER = 'instance.identifier';
     public const KEY_SENDMAIL_PATH = 'email_config.sendmail_path';
@@ -535,6 +536,17 @@ class ConfigService
     public function showSystemCheckScreen(): bool
     {
         return $this->_getConfigValue(self::KEY_SHOW_SYSTEM_CHECK_SCREEN) == 1;
+    }
+
+    /**
+     * Whether OIDC provider URLs resolving to private/internal addresses are allowed.
+     * Off by default; the request-time SSRF guard only relaxes when this is explicitly enabled.
+     *
+     * @return bool
+     */
+    public function isOidcPrivateProviderHostAllowed(): bool
+    {
+        return $this->_getConfigValue(self::KEY_OIDC_ALLOW_PRIVATE_PROVIDER_HOSTS) == 1;
     }
 
     /**

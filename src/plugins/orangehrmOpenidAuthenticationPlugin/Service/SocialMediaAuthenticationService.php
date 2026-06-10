@@ -26,6 +26,7 @@ use OrangeHRM\Authentication\Exception\AuthenticationException;
 use OrangeHRM\Authentication\Service\AuthenticationService;
 use OrangeHRM\Authentication\Traits\Service\AuthenticationServiceTrait;
 use OrangeHRM\Core\Traits\Auth\AuthUserTrait;
+use OrangeHRM\Core\Traits\Service\ConfigServiceTrait;
 use OrangeHRM\Core\Utility\EncryptionHelperTrait;
 use OrangeHRM\Entity\AuthProviderExtraDetails;
 use OrangeHRM\Entity\EmployeeTerminationRecord;
@@ -45,6 +46,7 @@ class SocialMediaAuthenticationService
     use AuthenticationServiceTrait;
     use EncryptionHelperTrait;
     use AuthUserTrait;
+    use ConfigServiceTrait;
 
     private AuthenticationService $authenticationService;
     private AuthProviderDao $authProviderDao;
@@ -87,6 +89,9 @@ class SocialMediaAuthenticationService
 
         $oidcClient->addScope([$scope]);
         $oidcClient->setRedirectURL($redirectUrl);
+        $oidcClient->setAllowPrivateProviderHosts(
+            $this->getConfigService()->isOidcPrivateProviderHostAllowed()
+        );
 
         return $oidcClient;
     }
