@@ -30,8 +30,11 @@ langStrings:
     value: 'Google Chat'
     unitId: platform_google_chat
   -
-    value: 'Webhook URL'
+    value: 'Slack Incoming Webhook URL'
     unitId: slack_incoming_webhook_url
+  -
+    value: 'Google Chat Webhook URL'
+    unitId: google_chat_webhook_url
   -
     value: 'Create an Incoming Webhook in your Slack workspace and paste the URL here. Must be HTTPS.'
     unitId: slack_webhook_hint
@@ -53,6 +56,9 @@ langStrings:
   -
     value: 'IANA timezone for this notification.'
     unitId: workspace_notification_timezone_hint
+  -
+    value: 'Channel'
+    unitId: channel
   -
     value: 'Send Time'
     unitId: send_time
