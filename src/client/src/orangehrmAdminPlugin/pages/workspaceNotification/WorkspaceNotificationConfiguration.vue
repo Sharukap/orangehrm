@@ -120,7 +120,7 @@
                 v-model="form.subunit"
                 type="select"
                 :options="subunitOptions"
-                :label="$t('admin.sub_unit')"
+                :label="$t('general.sub_unit')"
               />
               <oxd-text class="orangehrm-input-hint" tag="p">
                 {{ $t('admin.workspace_notification_subunit_hint') }}
@@ -461,7 +461,7 @@ export default {
         {name: 'timezone', title: 'Timezone', style: {flex: '14%'}},
         {
           name: 'sendTime',
-          title: 'Send time',
+          title: 'Send Time',
           sortField: 'r.dailySendTime',
           style: {flex: '9%'},
         },
@@ -577,7 +577,7 @@ export default {
           channelLabel: row.channelLabel || '',
           subunit:
             subunitNames.length === 0
-              ? 'All employees'
+              ? this.$t('admin.all_employees')
               : subunitNames.join(', '),
           timezone: row.timezone || 'UTC',
           sendTime: row.dailySendTime || '09:00',
