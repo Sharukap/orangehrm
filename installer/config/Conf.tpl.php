@@ -78,4 +78,15 @@ class Conf
     {
         return $this->dbPass;
     }
+
+    /**
+     * Optional hardening against Host header attacks. Return regex patterns of the host names
+     * this instance is served on, e.g. ['^hrm\.example\.com$']. Requests with any other Host
+     * header are rejected with HTTP 400. An empty array disables the check.
+     * @return string[]
+     */
+    public function getTrustedHosts(): array
+    {
+        return [];
+    }
 }

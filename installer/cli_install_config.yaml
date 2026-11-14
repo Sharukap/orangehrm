@@ -13,6 +13,7 @@ database:
 organization:
   name: OrangeHRM
   country: US
+  applicationUrl: ~ # Public URL used in email links (scheme://host[:port]), e.g. https://hrm.example.com
 
 admin:
   adminUserName: Admin

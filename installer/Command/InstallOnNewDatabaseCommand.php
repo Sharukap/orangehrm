@@ -19,6 +19,7 @@
 
 namespace OrangeHRM\Installer\Command;
 
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use DateTimeZone;
 use OrangeHRM\Authentication\Dto\UserCredential;
 use OrangeHRM\Config\Config;
@@ -321,6 +322,28 @@ class InstallOnNewDatabaseCommand extends InstallerCommand
         $timezone = $this->getIO()->askQuestion($timezoneQuestion);
 
         StateContainer::getInstance()->storeInstanceData($organizationName, $countryCode, $langCode, $timezone);
+
+        $this->getIO()->block(
+            'Public URL users open OrangeHRM with (scheme, host and port only). It is used for links in emails such as password reset.'
+        );
+        $applicationUrlQuestion = new Question('Application URL (e.g. https://hrm.example.com)');
+        $applicationUrlQuestion->setValidator(
+            static function (?string $url): ?string {
+                if ($url === null || trim($url) === '') {
+                    return null;
+                }
+                $origin = ApplicationUrl::normalize($url);
+                if ($origin === null) {
+                    throw new InvalidArgumentException('Expected an http(s) origin, e.g. https://hrm.example.com');
+                }
+                return $origin;
+            }
+        );
+        $applicationUrl = $this->getIO()->askQuestion($applicationUrlQuestion);
+        if ($applicationUrl === null) {
+            $this->getIO()->warning('Application URL is not set, so password reset emails will not be sent. Set it in Admin > Configuration > Email Configuration.');
+        }
+        StateContainer::getInstance()->storeApplicationUrl($applicationUrl);
     }
 
     protected function adminUserCreation(): void

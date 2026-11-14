@@ -1,6 +1,8 @@
 GetOne:
   get email configuration:
     userId: 1
+    meta:
+      applicationUrl: null
     data:
       mailType: smtp
       sentAs: 'test@orangehrm.com'
@@ -26,6 +28,73 @@ Update:
       smtpSecurityType: null
     meta:
       testEmailStatus: 1
+      applicationUrl: null
+
+  update with application url:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: 'HTTPS://HRM.Test:8443/'
+    data:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      smtpHost: null
+      smtpPort: null
+      smtpUsername: null
+      smtpAuthType: null
+      smtpSecurityType: null
+    meta:
+      testEmailStatus: 1
+      applicationUrl: 'https://hrm.test:8443'
+
+  update with application url containing path:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: 'http://hrm.test/path'
+    invalidOnly: [ applicationUrl ]
+
+  update with application url containing credentials:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: 'http://hrm.test@evil.test'
+    invalidOnly: [ applicationUrl ]
+
+  update with javascript application url:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: 'javascript:alert(1)'
+    invalidOnly: [ applicationUrl ]
+
+  update with markup in application url:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: 'http://hrm.test"><script>alert(1)</script>'
+    invalidOnly: [ applicationUrl ]
+
+  update with empty application url:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: ''
+    invalidOnly: [ applicationUrl ]
+
+  update with too long application url:
+    userId: 1
+    body:
+      mailType: sendmail
+      sentAs: 'test@orangehrm.com'
+      applicationUrl: 'http://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.test'
+    invalidOnly: [ applicationUrl ]
 
   update with smtp without host:
     userId: 1
@@ -60,6 +129,7 @@ Update:
       smtpSecurityType: null
     meta:
       testEmailStatus: 1
+      applicationUrl: null
 
   update smtp with invalid auth type:
     userId: 1
@@ -89,6 +159,7 @@ Update:
       smtpSecurityType: null
     meta:
       testEmailStatus: 1
+      applicationUrl: null
 
   update smtps with login auth without password:
     userId: 1
@@ -108,6 +179,7 @@ Update:
       smtpSecurityType: null
     meta:
       testEmailStatus: 1
+      applicationUrl: null
 
   update smtps with login auth with null username:
     userId: 1
@@ -162,6 +234,7 @@ Update:
       smtpSecurityType: null
     meta:
       testEmailStatus: 1
+      applicationUrl: null
 
 UpdateWithEmptyConfiguration:
   update with sendmail:
@@ -179,6 +252,7 @@ UpdateWithEmptyConfiguration:
       smtpSecurityType: null
     meta:
       testEmailStatus: 1
+      applicationUrl: null
 
   update with null password (fails if no password set):
     userId: 1

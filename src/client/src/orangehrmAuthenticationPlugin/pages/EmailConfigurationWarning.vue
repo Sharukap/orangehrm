@@ -26,7 +26,11 @@
         </oxd-text>
         <oxd-divider />
         <card-note
-          :note-text="$t('auth.configured_receive_email_notification_note')"
+          :note-text="
+            applicationUrlMissing
+              ? $t('auth.application_url_not_configured_note')
+              : $t('auth.configured_receive_email_notification_note')
+          "
           class="orangehrm-forgot-password-card-note"
           has-note-icon
         />
@@ -53,6 +57,12 @@ export default {
   name: 'EmailConfigurationWarning',
   components: {
     'card-note': CardNote,
+  },
+  props: {
+    applicationUrlMissing: {
+      type: Boolean,
+      default: false,
+    },
   },
   methods: {
     navigateUrl() {

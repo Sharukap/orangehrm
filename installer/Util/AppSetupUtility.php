@@ -25,6 +25,7 @@ use Exception;
 use InvalidArgumentException;
 use OrangeHRM\Config\Config;
 use OrangeHRM\Core\Exception\KeyHandlerException;
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use OrangeHRM\Core\Utility\KeyHandler;
 use OrangeHRM\Core\Utility\PasswordHash;
 use OrangeHRM\Framework\Filesystem\Filesystem;
@@ -75,9 +76,11 @@ class AppSetupUtility
         '5.8' => \OrangeHRM\Installer\Migration\V5_8_0\Migration::class,
         '5.8.1' => \OrangeHRM\Installer\Migration\V5_8_1\Migration::class,
         '5.9' => \OrangeHRM\Installer\Migration\V5_9_0\Migration::class,
+        '5.9.1' => \OrangeHRM\Installer\Migration\V5_9_1\Migration::class,
     ];
 
     public const INSTALLATION_DB_TYPE_NEW = 'new';
+    public const CONFIG_KEY_APPLICATION_URL = 'instance.application_url';
     public const INSTALLATION_DB_TYPE_EXISTING = 'existing';
 
     private ConfigHelper $configHelper;
@@ -222,6 +225,46 @@ class AppSetupUtility
             'instance.reg_consent',
             (int)StateContainer::getInstance()->getRegConsent()
         );
+        $this->setApplicationUrlIfNotSet(StateContainer::getInstance()->getApplicationUrl());
+    }
+
+    /**
+     * Store the instance's public origin (used for links in emails) unless one is already configured.
+     * Invalid values are ignored; the admin can set it later in Admin > Email Configuration.
+     *
+     * @param string|null $applicationUrl
+     * @return bool true if a value was stored
+     */
+    public function setApplicationUrlIfNotSet(?string $applicationUrl): bool
+    {
+        $origin = $applicationUrl === null ? null : ApplicationUrl::normalize($applicationUrl);
+        if ($origin === null || $this->isApplicationUrlSet()) {
+            return false;
+        }
+        $this->getConfigHelper()->setConfigValue(self::CONFIG_KEY_APPLICATION_URL, $origin);
+        return true;
+    }
+
+    /**
+     * @param string $applicationUrl
+     * @throws InvalidArgumentException if the value is not an http(s) origin
+     */
+    public function setApplicationUrl(string $applicationUrl): void
+    {
+        $origin = ApplicationUrl::normalize($applicationUrl);
+        if ($origin === null) {
+            throw new InvalidArgumentException('Application URL must be an http(s) origin, e.g. https://hrm.example.com');
+        }
+        $this->getConfigHelper()->setConfigValue(self::CONFIG_KEY_APPLICATION_URL, $origin);
+    }
+
+    /**
+     * @return bool
+     */
+    public function isApplicationUrlSet(): bool
+    {
+        $value = $this->getConfigHelper()->getConfigValue(self::CONFIG_KEY_APPLICATION_URL);
+        return $value !== null && ApplicationUrl::isValid($value);
     }
 
     protected function insertCsrfKey(): void

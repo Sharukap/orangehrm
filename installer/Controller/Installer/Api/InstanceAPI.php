@@ -19,6 +19,7 @@
 
 namespace OrangeHRM\Installer\Controller\Installer\Api;
 
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use OrangeHRM\Framework\Http\Request;
 use OrangeHRM\Framework\Http\Response;
 use OrangeHRM\Installer\Controller\AbstractInstallerRestController;
@@ -81,6 +82,9 @@ class InstanceAPI extends AbstractInstallerRestController
         }
 
         StateContainer::getInstance()->storeInstanceData($organizationName, $countryCode, $langCode, $timezone);
+        StateContainer::getInstance()->storeApplicationUrl(
+            ApplicationUrl::normalize($request->getSchemeAndHttpHost())
+        );
         return [
             'organizationName' => $organizationName,
             'countryCode' => $countryCode,

@@ -63,6 +63,22 @@
             </oxd-grid-item>
           </oxd-grid>
         </oxd-form-row>
+        <oxd-form-row>
+          <oxd-grid :cols="2" class="orangehrm-full-width-grid">
+            <oxd-grid-item>
+              <oxd-input-field
+                v-model="emailConfiguration.applicationUrl"
+                :label="$t('admin.application_url')"
+                :rules="rules.applicationUrl"
+                placeholder="https://hrm.example.com"
+                required
+              />
+              <oxd-text class="orangehrm-input-hint" tag="p">
+                {{ $t('admin.application_url_input_hint') }}
+              </oxd-text>
+            </oxd-grid-item>
+          </oxd-grid>
+        </oxd-form-row>
         <oxd-form-row v-if="emailConfiguration.mailType === 'sendmail'">
           <oxd-grid :cols="2" class="orangehrm-full-width-grid">
             <oxd-grid-item>
@@ -222,6 +238,7 @@ import {
   shouldNotExceedCharLength,
 } from '@ohrm/core/util/validation/rules';
 import {OxdSwitchInput} from '@ohrm/oxd';
+import {validApplicationUrl} from './applicationUrl';
 
 export default {
   components: {
@@ -263,6 +280,7 @@ export default {
         smtpAuthType: '',
         smtpSecurityType: '',
         testEmailAddress: '',
+        applicationUrl: '',
       },
       initialEmailConfiguration: {
         ...this.emailConfiguration,
@@ -271,6 +289,11 @@ export default {
       rules: {
         mailType: [required, shouldNotExceedCharLength(50)],
         sentAs: [required, shouldNotExceedCharLength(100), validEmailFormat],
+        applicationUrl: [
+          required,
+          shouldNotExceedCharLength(255),
+          validApplicationUrl,
+        ],
         smtpHost: [required, shouldNotExceedCharLength(100)],
         smtpPort: [shouldNotExceedCharLength(10)],
         smtpUsername: [required, shouldNotExceedCharLength(100)],
@@ -293,7 +316,10 @@ export default {
         url: '/api/v2/admin/email-configuration',
       })
       .then((response) => {
-        const {data} = response.data;
+        const {data, meta} = response.data;
+        // Not configured yet (e.g. upgraded instance): suggest the origin the admin is using now
+        this.emailConfiguration.applicationUrl =
+          meta?.applicationUrl ?? window.location.origin;
         this.emailConfiguration.mailType = data.mailType;
         this.emailConfiguration.sentAs = data.sentAs;
         this.emailConfiguration.smtpHost = data.smtpHost;
@@ -338,6 +364,7 @@ export default {
             smtpAuthType: this.emailConfiguration.smtpAuthType,
             smtpSecurityType: this.useTLSSecureConnection ? 'tls' : 'none',
             testEmailAddress: this.emailConfiguration.testEmailAddress,
+            applicationUrl: this.emailConfiguration.applicationUrl,
           },
         })
         .then((response) => {

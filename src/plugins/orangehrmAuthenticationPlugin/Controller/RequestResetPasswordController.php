@@ -24,6 +24,7 @@ use OrangeHRM\Authentication\Service\ResetPasswordService;
 use OrangeHRM\Authentication\Traits\CsrfTokenManagerTrait;
 use OrangeHRM\Core\Controller\AbstractController;
 use OrangeHRM\Core\Controller\PublicControllerInterface;
+use OrangeHRM\Core\Traits\Service\ConfigServiceTrait;
 use OrangeHRM\Entity\User;
 use OrangeHRM\Framework\Http\RedirectResponse;
 use OrangeHRM\Framework\Http\Request;
@@ -32,6 +33,7 @@ use OrangeHRM\Framework\Http\Response;
 class RequestResetPasswordController extends AbstractController implements PublicControllerInterface
 {
     use CsrfTokenManagerTrait;
+    use ConfigServiceTrait;
 
     protected ?ResetPasswordService $resetPasswordService = null;
 
@@ -56,6 +58,10 @@ class RequestResetPasswordController extends AbstractController implements Publi
         $token = $request->request->get('_token');
         if (!$this->getCsrfTokenManager()->isValid('request-reset-password', $token)) {
             throw AuthenticationException::invalidCsrfToken();
+        }
+        if ($this->getConfigService()->getApplicationUrl() === null) {
+            // Same response for every username, so it can't reveal which accounts exist
+            return $this->redirect('auth/requestPasswordResetCode');
         }
         $username = $request->request->get('username');
         if (($user = $this->getResetPasswordService()->searchForUserRecord($username)) instanceof User) {

@@ -33,12 +33,16 @@ use OrangeHRM\Core\Api\V2\Validator\ParamRule;
 use OrangeHRM\Core\Api\V2\Validator\ParamRuleCollection;
 use OrangeHRM\Core\Api\V2\Validator\Rule;
 use OrangeHRM\Core\Api\V2\Validator\Rules;
+use OrangeHRM\Core\Traits\Service\ConfigServiceTrait;
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use OrangeHRM\Core\Utility\MailTransport;
 use OrangeHRM\Entity\EmailConfiguration;
 use Symfony\Component\Mailer\Exception\TransportException as MailerException;
 
 class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
 {
+    use ConfigServiceTrait;
+
     public const PARAMETER_MAIL_TYPE = 'mailType';
     public const PARAMETER_SENT_AS = 'sentAs';
     public const PARAMETER_SMTP_HOST = 'smtpHost';
@@ -48,6 +52,7 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
     public const PARAMETER_SMTP_AUTH_TYPE = 'smtpAuthType';
     public const PARAMETER_SMTP_SECURITY_TYPE = 'smtpSecurityType';
     public const PARAMETER_TEST_EMAIL_ADDRESS = 'testEmailAddress';
+    public const PARAMETER_APPLICATION_URL = 'applicationUrl';
 
     public const PARAM_RULE_MAIL_TYPE_MAX_LENGTH = 50;
     public const PARAM_RULE_SENT_AS_MAX_LENGTH = 100;
@@ -74,6 +79,7 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
     public const DEFAULT_PARAMETER_SECURITY_TYPE = 'ssl';
 
     public const TEST_EMAIL_STATUS = 'testEmailStatus';
+    public const META_PARAMETER_APPLICATION_URL = 'applicationUrl';
 
     /**
      * @var null|EmailConfigurationService
@@ -113,7 +119,11 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
      *                 property="data",
      *                 ref="#/components/schemas/Admin-EmailConfigurationModel"
      *             ),
-     *             @OA\Property(property="meta", type="object")
+     *             @OA\Property(
+     *                 property="meta",
+     *                 type="object",
+     *                 @OA\Property(property="applicationUrl", type="string", nullable=true)
+     *             )
      *         )
      *     ),
      *     @OA\Response(response="404", ref="#/components/responses/RecordNotFound")
@@ -138,7 +148,11 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
             $emailConfiguration->setSmtpSecurityType(self::DEFAULT_PARAMETER_SECURITY_TYPE);
         }
 
-        return new EndpointResourceResult(EmailConfigurationModel::class, $emailConfiguration);
+        return new EndpointResourceResult(
+            EmailConfigurationModel::class,
+            $emailConfiguration,
+            new ParameterBag([self::META_PARAMETER_APPLICATION_URL => $this->getConfigService()->getApplicationUrl()])
+        );
     }
 
     /**
@@ -171,6 +185,11 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
      *             @OA\Property(property="smtpAuthType", type="string"),
      *             @OA\Property(property="smtpSecurityType", type="string"),
      *             @OA\Property(property="testEmailAddress", type="string"),
+     *             @OA\Property(
+     *                 property="applicationUrl",
+     *                 type="string",
+     *                 description="Public origin of this instance (scheme://host[:port]) used in email links"
+     *             ),
      *             required={"name"}
      *         )
      *     ),
@@ -184,7 +203,8 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
      *             @OA\Property(
      *                 property="meta",
      *                 type="object",
-     *                 @OA\Property(property="testEmailStatus", type="integer")
+     *                 @OA\Property(property="testEmailStatus", type="integer"),
+     *                 @OA\Property(property="applicationUrl", type="string", nullable=true)
      *             )
      *         )
      *     ),
@@ -196,6 +216,13 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
     public function update(): EndpointResourceResult
     {
         $emailConfiguration = $this->saveEmailConfigurationInfo();
+        $applicationUrl = $this->getRequestParams()->getStringOrNull(
+            RequestParams::PARAM_TYPE_BODY,
+            self::PARAMETER_APPLICATION_URL
+        );
+        if ($applicationUrl !== null) {
+            $this->getConfigService()->setApplicationUrl($applicationUrl);
+        }
         $testEmail = $this->getRequestParams()->getStringOrNull(
             RequestParams::PARAM_TYPE_BODY,
             self::PARAMETER_TEST_EMAIL_ADDRESS
@@ -214,6 +241,7 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
             new ParameterBag(
                 [
                     self::TEST_EMAIL_STATUS => $testEmailStatus,
+                    self::META_PARAMETER_APPLICATION_URL => $this->getConfigService()->getApplicationUrl(),
                 ]
             )
         );
@@ -268,6 +296,15 @@ class EmailConfigurationAPI extends Endpoint implements ResourceEndpoint
                     new Rule(Rules::LENGTH, [null, self::PARAM_RULE_TEST_EMAIL_ADDRESS_MAX_LENGTH]),
                 ),
                 true
+            ),
+            $this->getValidationDecorator()->notRequiredParamRule(
+                new ParamRule(
+                    self::PARAMETER_APPLICATION_URL,
+                    new Rule(Rules::STRING_TYPE),
+                    new Rule(Rules::LENGTH, [null, ApplicationUrl::MAX_LENGTH]),
+                    new Rule(Rules::CALLBACK, [static fn (string $url): bool => ApplicationUrl::isValid($url)])
+                ),
+                true // an empty string is invalid, not "unchanged"
             ),
             ...$this->getMailTypeDependentRules()
         );

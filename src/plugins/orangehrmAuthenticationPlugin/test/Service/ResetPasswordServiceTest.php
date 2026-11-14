@@ -27,11 +27,15 @@ use OrangeHRM\Config\Config;
 use OrangeHRM\Core\Service\ConfigService;
 use OrangeHRM\Core\Service\DateTimeHelperService;
 use OrangeHRM\Core\Service\EmailService;
+use OrangeHRM\Entity\EmailConfiguration;
 use OrangeHRM\Entity\Employee;
 use OrangeHRM\Entity\ResetPasswordRequest;
 use OrangeHRM\Entity\User;
 use OrangeHRM\Framework\Routing\UrlGenerator;
 use OrangeHRM\Framework\Services;
+use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing\Route;
+use Symfony\Component\Routing\RouteCollection;
 use OrangeHRM\Tests\Util\KernelTestCase;
 use OrangeHRM\Tests\Util\TestDataService;
 
@@ -147,11 +151,9 @@ class ResetPasswordServiceTest extends KernelTestCase
             ->onlyMethods(['generate'])
             ->disableOriginalConstructor()
             ->getMock();
-        $urlGenerator->expects($this->once())
-            ->method('generate')
-            ->willReturn(
-                'http://localhost/orangeHrm/orangehrm/web/index.php/auth/resetPassword/resetCode/YWRtaW4jU0VQQVJBVE9SI6kK4PL4sB8AtJa2y5WNP-Y'
-            );
+        // Application URL is not configured in the test DB: no link must be generated
+        $urlGenerator->expects($this->never())
+            ->method('generate');
         $this->createKernelWithMockServices(
             [Services::URL_GENERATOR => $urlGenerator, Services::CONFIG_SERVICE => new ConfigService()]
         );
@@ -190,11 +192,9 @@ class ResetPasswordServiceTest extends KernelTestCase
             ->onlyMethods(['generate'])
             ->disableOriginalConstructor()
             ->getMock();
-        $urlGenerator->expects($this->once())
-            ->method('generate')
-            ->willReturn(
-                'http://localhost/orangeHrm/orangehrm/web/index.php/auth/resetPassword/resetCode/YWRtaW4jU0VQQVJBVE9SI6kK4PL4sB8AtJa2y5WNP-Y'
-            );
+        // Application URL is not configured in the test DB: no link must be generated
+        $urlGenerator->expects($this->never())
+            ->method('generate');
         $this->createKernelWithMockServices(
             [
                 Services::URL_GENERATOR => $urlGenerator,
@@ -256,5 +256,118 @@ class ResetPasswordServiceTest extends KernelTestCase
         $user = $this->getEntityManager()->getRepository(User::class)->findOneBy(['id' => '2']);
         $user = $this->resetPasswordService->validateUser($user);
         $this->assertInstanceOf(User::class, $user);
+    }
+
+    private const RESET_CODE = 'YWRtaW4jU0VQQVJBVE9SI6kK4PL4sB8AtJa2y5WNP-Y';
+
+    /**
+     * Real URL generator whose request context carries an attacker controlled Host header
+     */
+    private function getUrlGeneratorWithSpoofedHost(): UrlGenerator
+    {
+        $routes = new RouteCollection();
+        $routes->add('auth_reset_code', new Route('/auth/resetPassword/resetCode/{resetCode}'));
+        $context = new RequestContext('/orangehrm/web/index.php', 'POST', 'evil.test', 'http', 80, 443);
+        return new UrlGenerator($routes, $context);
+    }
+
+    /**
+     * @return ResetPasswordService|\PHPUnit\Framework\MockObject\MockObject
+     */
+    private function getServiceWithEmailService(EmailService $emailService): ResetPasswordService
+    {
+        $service = $this->getMockBuilder(ResetPasswordService::class)
+            ->onlyMethods(['getEmailService'])
+            ->getMock();
+        $service->method('getEmailService')->willReturn($emailService);
+        return $service;
+    }
+
+    /**
+     * @return EmailService|\PHPUnit\Framework\MockObject\MockObject
+     */
+    private function getEmailServiceMock(): EmailService
+    {
+        $emailConfig = new EmailConfiguration();
+        $emailConfig->setSentAs('noreply@hrm.test');
+        $emailService = $this->createMock(EmailService::class);
+        $emailService->method('getEmailConfig')->willReturn($emailConfig);
+        return $emailService;
+    }
+
+    private function getConfigServiceWithApplicationUrl(?string $applicationUrl): ConfigService
+    {
+        $configService = $this->getMockBuilder(ConfigService::class)
+            ->onlyMethods(['getApplicationUrl'])
+            ->getMock();
+        $configService->method('getApplicationUrl')->willReturn($applicationUrl);
+        return $configService;
+    }
+
+    public function testResetLinkUsesApplicationUrlAndIgnoresRequestHost(): void
+    {
+        $this->createKernelWithMockServices([
+            Services::URL_GENERATOR => $this->getUrlGeneratorWithSpoofedHost(),
+            Services::CONFIG_SERVICE => $this->getConfigServiceWithApplicationUrl('https://hrm.test:8443'),
+        ]);
+
+        $body = null;
+        $emailService = $this->getEmailServiceMock();
+        $emailService->method('setMessageBody')->willReturnCallback(function ($messageBody) use (&$body) {
+            $body = $messageBody;
+        });
+        $emailService->expects($this->once())->method('sendEmail')->willReturn(true);
+
+        $employee = $this->getEntityManager()->getRepository(Employee::class)->findOneBy(['empNumber' => 1]);
+        $isSent = $this->getServiceWithEmailService($emailService)
+            ->sendPasswordResetCodeEmail($employee, self::RESET_CODE, 'testUser');
+
+        $this->assertTrue($isSent);
+        $this->assertStringContainsString(
+            'https://hrm.test:8443/orangehrm/web/index.php/auth/resetPassword/resetCode/' . self::RESET_CODE,
+            $body
+        );
+        $this->assertStringNotContainsString('evil.test', $body);
+    }
+
+    public function testSendPasswordResetCodeEmailRefusesWhenApplicationUrlNotSet(): void
+    {
+        $this->createKernelWithMockServices([
+            Services::URL_GENERATOR => $this->getUrlGeneratorWithSpoofedHost(),
+            Services::CONFIG_SERVICE => $this->getConfigServiceWithApplicationUrl(null),
+        ]);
+
+        $emailService = $this->getEmailServiceMock();
+        $emailService->expects($this->never())->method('setMessageBody');
+        $emailService->expects($this->never())->method('sendEmail');
+
+        $employee = $this->getEntityManager()->getRepository(Employee::class)->findOneBy(['empNumber' => 1]);
+        $isSent = $this->getServiceWithEmailService($emailService)
+            ->sendPasswordResetCodeEmail($employee, self::RESET_CODE, 'testUser');
+
+        $this->assertFalse($isSent);
+    }
+
+    public function testLogPasswordResetRequestDoesNotSaveWhenApplicationUrlNotSet(): void
+    {
+        $this->createKernelWithMockServices([
+            Services::URL_GENERATOR => $this->getUrlGeneratorWithSpoofedHost(),
+            Services::CONFIG_SERVICE => $this->getConfigServiceWithApplicationUrl(null),
+            Services::DATETIME_HELPER_SERVICE => new DateTimeHelperService(),
+        ]);
+
+        $emailService = $this->getEmailServiceMock();
+        $emailService->expects($this->never())->method('sendEmail');
+        $dao = $this->createMock(ResetPasswordDao::class);
+        $dao->expects($this->never())->method('saveResetPasswordRequest');
+
+        $service = $this->getMockBuilder(ResetPasswordService::class)
+            ->onlyMethods(['getEmailService', 'getResetPasswordDao'])
+            ->getMock();
+        $service->method('getEmailService')->willReturn($emailService);
+        $service->method('getResetPasswordDao')->willReturn($dao);
+
+        $user = $this->getEntityManager()->getRepository(User::class)->findOneBy(['id' => '3']);
+        $this->assertFalse($service->logPasswordResetRequest($user));
     }
 }

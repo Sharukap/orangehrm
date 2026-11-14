@@ -20,6 +20,7 @@
 include_once('../src/config/log_settings.php');
 
 use OrangeHRM\Config\Config;
+use OrangeHRM\Core\Utility\TrustedHosts;
 use OrangeHRM\Framework\Framework;
 use OrangeHRM\Framework\Http\RedirectResponse;
 use OrangeHRM\Framework\Http\Request;
@@ -39,6 +40,11 @@ $kernel = new Framework($env, $debug);
 $request = Request::createFromGlobals();
 
 if (Config::isInstalled()) {
+    TrustedHosts::configure(Config::getConf());
+    if (!TrustedHosts::isRequestHostTrusted($request)) {
+        TrustedHosts::getUntrustedHostResponse()->send();
+        exit;
+    }
     $response = $kernel->handleRequest($request);
 } else {
     $response = new RedirectResponse(str_replace('/web/index.php', '', $request->getBaseUrl()));

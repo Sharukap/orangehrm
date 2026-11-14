@@ -20,6 +20,7 @@
 namespace OrangeHRM\Tests\Core\Service;
 
 use Exception;
+use InvalidArgumentException;
 use OrangeHRM\Core\Dao\ConfigDao;
 use OrangeHRM\Core\Exception\DaoException;
 use OrangeHRM\Core\Service\ConfigService;
@@ -445,5 +446,51 @@ class ConfigServiceTest extends KernelTestCase
             ConfigService::KEY_TIMESHEET_PERIOD_SET,
             $startDay
         );
+    }
+
+    public function testSetApplicationUrlStoresNormalizedOrigin(): void
+    {
+        $mockDao = $this->getMockBuilder(ConfigDao::class)->getMock();
+        $mockDao->expects($this->once())
+            ->method('setValue')
+            ->with(ConfigService::KEY_INSTANCE_APPLICATION_URL, 'https://hrm.test:8443');
+        $this->configService->setConfigDao($mockDao);
+
+        $this->configService->setApplicationUrl('HTTPS://HRM.test:8443/');
+    }
+
+    public function testSetApplicationUrlRejectsNonOrigin(): void
+    {
+        $mockDao = $this->getMockBuilder(ConfigDao::class)->getMock();
+        $mockDao->expects($this->never())->method('setValue');
+        $this->configService->setConfigDao($mockDao);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->configService->setApplicationUrl('http://hrm.test/path');
+    }
+
+    /**
+     * @dataProvider applicationUrlStoredValueDataProvider
+     */
+    public function testGetApplicationUrl(?string $stored, ?string $expected): void
+    {
+        $mockDao = $this->getMockBuilder(ConfigDao::class)->getMock();
+        $mockDao->expects($this->once())
+            ->method('getValue')
+            ->with(ConfigService::KEY_INSTANCE_APPLICATION_URL)
+            ->willReturn($stored);
+        $this->configService->setConfigDao($mockDao);
+
+        $this->assertSame($expected, $this->configService->getApplicationUrl());
+    }
+
+    public function applicationUrlStoredValueDataProvider(): array
+    {
+        return [
+            'not set' => [null, null],
+            'empty' => ['', null],
+            'valid' => ['http://hrm.test', 'http://hrm.test'],
+            'tampered value in DB is ignored' => ['http://hrm.test/x?y', null],
+        ];
     }
 }
