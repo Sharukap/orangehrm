@@ -19,6 +19,7 @@
 
 namespace OrangeHRM\Installer\Command;
 
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use InvalidArgumentException;
 use OrangeHRM\Authentication\Dto\UserCredential;
 use OrangeHRM\Config\Config;
@@ -71,7 +72,13 @@ class UpgradeCommand extends InstallerCommand
             ->addOption('dbUser', null, InputOption::VALUE_REQUIRED)
             ->addOption('dbUserPassword', null, InputOption::VALUE_REQUIRED)
             ->addOption('currentVersion', null, InputOption::VALUE_REQUIRED)
-            ->addOption('systemCheckAcceptRisk', null, InputOption::VALUE_NONE);
+            ->addOption('systemCheckAcceptRisk', null, InputOption::VALUE_NONE)
+            ->addOption(
+                'applicationUrl',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Public URL of this instance used in email links, e.g. https://hrm.example.com'
+            );
     }
 
     /**
@@ -122,6 +129,12 @@ class UpgradeCommand extends InstallerCommand
         $this->throwIfParamEmpty($input, 'dbHost');
         $this->throwIfParamEmpty($input, 'dbName');
         $this->throwIfParamEmpty($input, 'dbUser');
+
+        $applicationUrl = $input->getOption('applicationUrl');
+        if ($applicationUrl !== null && !ApplicationUrl::isValid($applicationUrl)) {
+            $this->getIO()->error('Invalid `applicationUrl`. Expected an http(s) origin, e.g. https://hrm.example.com');
+            return self::INVALID;
+        }
 
         $dbHost = $input->getOption('dbHost');
         $dbPort = $input->getOption('dbPort') ?? 3306;
@@ -230,6 +243,11 @@ class UpgradeCommand extends InstallerCommand
         foreach ($migrationVersions as $version) {
             Logger::getLogger()->info(json_encode(['version' => $version]));
             $appSetupUtility->runMigrationFor($version);
+        }
+        if ($applicationUrl !== null) {
+            $appSetupUtility->setApplicationUrl($applicationUrl);
+        } elseif (!$appSetupUtility->isApplicationUrlSet()) {
+            $this->getIO()->warning('Application URL is not set, so password reset emails will not be sent. Set it in Admin > Configuration > Email Configuration.');
         }
         $this->completeStep($step2, self::STEP_2);
 

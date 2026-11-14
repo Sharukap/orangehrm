@@ -64,6 +64,7 @@ class StateContainer
     public const INSTALLER_STARTED_EVENT_STORED = 'installerStartedEventStored';
 
     public const MIGRATION_COMPLETED = 'migrationCompleted';
+    public const APPLICATION_URL = 'applicationUrl';
 
     /**
      * @var null|self
@@ -430,6 +431,22 @@ class StateContainer
     public function clearMigrationCompleted(): void
     {
         $this->getSession()->remove(self::MIGRATION_COMPLETED);
+    }
+
+    /**
+     * @param string|null $applicationUrl already normalized origin, or null when unknown
+     */
+    public function storeApplicationUrl(?string $applicationUrl): void
+    {
+        $this->getSession()->set(self::APPLICATION_URL, $applicationUrl);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getApplicationUrl(): ?string
+    {
+        return $this->getSession()->get(self::APPLICATION_URL);
     }
 
     public function clean(): void

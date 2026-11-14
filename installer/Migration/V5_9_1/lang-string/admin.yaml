@@ -1,0 +1,10 @@
+langStrings:
+  -
+    value: 'Application URL'
+    unitId: application_url
+  -
+    value: 'Public address users open OrangeHRM with. Used for links in emails, such as password reset.'
+    unitId: application_url_input_hint
+  -
+    value: 'Expected format: https://hrm.example.com'
+    unitId: expected_application_url_format

@@ -17,6 +17,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use OrangeHRM\Authentication\Dto\UserCredential;
 use OrangeHRM\Config\Config;
 use OrangeHRM\Framework\Filesystem\Filesystem;
@@ -88,6 +89,10 @@ $enableDataEncryption = $cliConfig['database']['enableDataEncryption'] == 'y';
 
 $organizationName = $cliConfig['organization']['name'];
 $countryCode = $cliConfig['organization']['country'];
+$applicationUrl = $cliConfig['organization']['applicationUrl'] ?? null;
+if ($applicationUrl !== null && !ApplicationUrl::isValid($applicationUrl)) {
+    die("Invalid `organization.applicationUrl`. Expected an http(s) origin, e.g. https://hrm.example.com\n");
+}
 
 $adminUsername = $cliConfig['admin']['adminUserName'];
 $adminPassword = $cliConfig['admin']['adminPassword'];
@@ -127,6 +132,12 @@ if ($dbType === AppSetupUtility::INSTALLATION_DB_TYPE_NEW) {
 
 // Instance data
 StateContainer::getInstance()->storeInstanceData($organizationName, $countryCode, null, null);
+StateContainer::getInstance()->storeApplicationUrl(
+    $applicationUrl === null ? null : ApplicationUrl::normalize($applicationUrl)
+);
+if ($applicationUrl === null) {
+    echo "Warning: Application URL is not set, so password reset emails will not be sent. Set it in Admin > Configuration > Email Configuration.\n";
+}
 
 // Admin user
 StateContainer::getInstance()->storeAdminUserData(

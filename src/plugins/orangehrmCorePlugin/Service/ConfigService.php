@@ -22,8 +22,10 @@ namespace OrangeHRM\Core\Service;
 use DateInterval;
 use DateTime;
 use Exception;
+use InvalidArgumentException;
 use OrangeHRM\Core\Dao\ConfigDao;
 use OrangeHRM\Core\Traits\Service\DateTimeHelperTrait;
+use OrangeHRM\Core\Utility\ApplicationUrl;
 use OrangeHRM\Entity\Config;
 use OrangeHRM\LDAP\Dto\LDAPSetting;
 
@@ -49,6 +51,7 @@ class ConfigService
     public const KEY_OPENID_PROVIDER_ADDED = 'openId.provider.added';
     public const KEY_OPEN_SOURCE_INTEGRATIONS = 'open_source_integrations';
     public const KEY_INSTANCE_IDENTIFIER = 'instance.identifier';
+    public const KEY_INSTANCE_APPLICATION_URL = 'instance.application_url';
     public const KEY_SENDMAIL_PATH = 'email_config.sendmail_path';
     public const KEY_LDAP_SETTINGS = 'ldap_settings';
     public const KEY_DASHBOARD_EMPLOYEES_ON_LEAVE_TODAY_SHOW_ONLY_ACCESSIBLE = 'dashboard.employees_on_leave_today.show_only_accessible';
@@ -429,6 +432,29 @@ class ConfigService
     public function getInstanceIdentifier(): ?string
     {
         return $this->_getConfigValue(self::KEY_INSTANCE_IDENTIFIER);
+    }
+
+    /**
+     * Trusted public origin of this instance (scheme://host[:port]), used to build links in emails
+     * @param string $value
+     * @throws InvalidArgumentException if the value is not a plain http(s) origin
+     */
+    public function setApplicationUrl(string $value): void
+    {
+        $origin = ApplicationUrl::normalize($value);
+        if ($origin === null) {
+            throw new InvalidArgumentException('Application URL must be an http(s) origin without path');
+        }
+        $this->_setConfigValue(self::KEY_INSTANCE_APPLICATION_URL, $origin);
+    }
+
+    /**
+     * @return string|null null when not set or the stored value is not a valid origin
+     */
+    public function getApplicationUrl(): ?string
+    {
+        $value = $this->_getConfigValue(self::KEY_INSTANCE_APPLICATION_URL);
+        return $value === null ? null : ApplicationUrl::normalize($value);
     }
 
     /**

@@ -48,6 +48,7 @@ class MigrationAPI extends AbstractInstallerRestController
             $result = ['version' => $version];
             Logger::getLogger()->info(json_encode($result));
             $appSetupUtility->runMigrationFor($version);
+            $appSetupUtility->setApplicationUrlIfNotSet($request->getSchemeAndHttpHost());
             return $result;
         } else {
             $fromVersion = $request->request->get('fromVersion');
@@ -58,6 +59,7 @@ class MigrationAPI extends AbstractInstallerRestController
             ];
             Logger::getLogger()->info(json_encode($result));
             $appSetupUtility->runMigrations($fromVersion, $toVersion);
+            $appSetupUtility->setApplicationUrlIfNotSet($request->getSchemeAndHttpHost());
             return $result;
         }
     }

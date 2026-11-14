@@ -1,0 +1,4 @@
+langStrings:
+  -
+    value: 'Password reset is unavailable because the Application URL is not configured. Please contact your HR Administrator.'
+    unitId: application_url_not_configured_note

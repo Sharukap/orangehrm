@@ -23,6 +23,7 @@ use OrangeHRM\Authentication\Traits\CsrfTokenManagerTrait;
 use OrangeHRM\Core\Controller\AbstractVueController;
 use OrangeHRM\Core\Controller\PublicControllerInterface;
 use OrangeHRM\Core\Service\EmailService;
+use OrangeHRM\Core\Traits\Service\ConfigServiceTrait;
 use OrangeHRM\Core\Vue\Component;
 use OrangeHRM\Core\Vue\Prop;
 use OrangeHRM\Framework\Http\Request;
@@ -30,6 +31,7 @@ use OrangeHRM\Framework\Http\Request;
 class RequestPasswordController extends AbstractVueController implements PublicControllerInterface
 {
     use CsrfTokenManagerTrait;
+    use ConfigServiceTrait;
 
     protected ?EmailService $emailService = null;
 
@@ -49,7 +51,8 @@ class RequestPasswordController extends AbstractVueController implements PublicC
      */
     public function preRender(Request $request): void
     {
-        if ($this->getEmailService()->isConfigSet()) {
+        $isApplicationUrlSet = $this->getConfigService()->getApplicationUrl() !== null;
+        if ($this->getEmailService()->isConfigSet() && $isApplicationUrlSet) {
             $component = new Component('request-reset-password');
             $component->addProp(
                 new Prop(
@@ -60,6 +63,7 @@ class RequestPasswordController extends AbstractVueController implements PublicC
             );
         } else {
             $component = new Component('email-configuration-warning');
+            $component->addProp(new Prop('application-url-missing', Prop::TYPE_BOOLEAN, !$isApplicationUrlSet));
         }
 
         $this->setTemplate('no_header.html.twig');
